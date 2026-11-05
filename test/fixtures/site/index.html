@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <title>Chair fixture</title>
+    </head>
+    <body style="font-family: sans-serif; padding: 40px">
+        <h1>Fixture</h1>
+        <button id="add" type="button">Add</button>
+        <span id="count">0</span>
+        <p>
+            <label>Name <input id="name" type="text" /></label>
+        </p>
+        <p><a href="second.html">Next</a></p>
+        <script>
+            document.getElementById('add').addEventListener('click', () => {
+                const count = document.getElementById('count')
+                count.textContent = String(Number(count.textContent) + 1)
+            })
+        </script>
+    </body>
+</html>

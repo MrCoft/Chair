@@ -1,0 +1,62 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+    --background: #0f1220;
+    --foreground: #e8e8f0;
+    --card: #171b2e;
+    --card-foreground: #e8e8f0;
+    --popover: #171b2e;
+    --popover-foreground: #e8e8f0;
+    --primary: #ffcc66;
+    --primary-foreground: #1a1a1a;
+    --secondary: #2c3460;
+    --secondary-foreground: #c9cdea;
+    --muted: #1c2138;
+    --muted-foreground: #9aa0c0;
+    --accent: #2c3460;
+    --accent-foreground: #e8e8f0;
+    --destructive: #ff4081;
+    --border: #3a4066;
+    --input: #3a4066;
+    --ring: #ffcc66;
+    --bookmark: #ff4081;
+    --radius: 0.5rem;
+}
+
+@theme inline {
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --color-card: var(--card);
+    --color-card-foreground: var(--card-foreground);
+    --color-popover: var(--popover);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-destructive: var(--destructive);
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+    --color-bookmark: var(--bookmark);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+}
+
+@layer base {
+    * {
+        @apply border-border outline-ring/50;
+    }
+    body {
+        @apply bg-background text-foreground antialiased;
+    }
+}

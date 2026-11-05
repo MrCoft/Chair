@@ -1,0 +1,4 @@
+.superpowers/
+docs/
+pnpm-lock.yaml
+src/router/routeTree.gen.ts
