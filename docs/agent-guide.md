@@ -30,6 +30,12 @@ They are test artifacts, not a substitute for a human walkthrough.
 
 The camera films only while a tool call is running. Your thinking time between calls is not filmed.
 
+Before `movie_start`, wait for the app's saved appearance and other startup
+settings to apply, for `document.fonts.ready`, and for the resulting browser paint.
+A visible control or `page.goto` completing does not prove asynchronous settings
+have loaded. Use app-specific readiness checks with the camera off, rather than a
+fixed sleep or changing the theme during the first recorded second.
+
 ## Numbering
 
 - Parts are `1`, `2`, ... `N`, declared in `movie_start` as `parts: [{ code, title }]`.
