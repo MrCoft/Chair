@@ -29,9 +29,11 @@ connection rather than silently switching to ordinary test video.
    effects; for an operation without a helper, mark its target first.
 5. Explain the outcome in a result chapter, point at the real UI, and verify it.
    Do not narrate success based only on a click or a desired state.
-6. `finish`, then inspect representative exported frames: cursor, highlighted
-   target, readable captions, result, and enough time to follow. Fix bad footage
-   with cut/repair/retake before finishing. Give the user the movie folder/codes.
+6. Check screenshots during the take; use cut/repair/retake while unfinished.
+   `finish`, then inspect representative exported action/result frames: cursor,
+   highlighted target, readable captions, and enough time to follow. A finished
+   take stays intact; record a corrected take in a new folder if needed. Give the
+   user the movie folder/codes.
 
 For repeatable automated demos, use the **same Chair recording tools and authored
 chapters**. Keep fast E2E/failure videos separate. Converting test videos or slowing
