@@ -5,8 +5,15 @@ import { onTestFinished, vi } from 'vitest'
 import { Route as IndexRoute } from '@/routes/index'
 import { Route as MovieRoute } from '@/routes/m.$id'
 import { stringifySearch } from '@/routes/-search'
+import { BookmarkProvider } from '@/bookmarks/BookmarkProvider'
 
-const rootRoute = createRootRoute({ component: Outlet })
+const rootRoute = createRootRoute({
+    component: () => (
+        <BookmarkProvider>
+            <Outlet />
+        </BookmarkProvider>
+    ),
+})
 
 const routeTree = rootRoute.addChildren([
     IndexRoute.update({ id: '/', path: '/', getParentRoute: () => rootRoute } as never),

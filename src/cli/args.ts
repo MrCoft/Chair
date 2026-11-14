@@ -1,20 +1,21 @@
 import { STEP_CODE } from '../format/movie'
 
 export type Command =
-    | { kind: 'view'; dir: string; at?: string; port?: number; idleExitMinutes?: number }
+    | { kind: 'view'; dir?: string; at?: string; port?: number; idleExitMinutes?: number }
     | { kind: 'export'; dir: string }
     | { kind: 'mcp' }
     | { kind: 'help' }
 
 export class UsageError extends Error {}
 
-const VIEW_USAGE = 'chair view <dir> [--at <code>] [--port <n>] [--idle-exit <minutes>]'
+const VIEW_USAGE = 'chair view [dir] [--at <code>] [--port <n>] [--idle-exit <minutes>]'
 const VIEW_OPTIONS = new Set(['--at', '--port', '--idle-exit'])
 const EXPORT_USAGE = 'chair export <movie dir>'
 
 export function parseArgs(argv: Array<string>): Command {
     const [name, ...rest] = argv
-    if (argv.length === 0 || name === 'help' || name === '--help' || name === '-h') return { kind: 'help' }
+    if (argv.length === 0) return { kind: 'view' }
+    if (name === 'help' || name === '--help' || name === '-h') return { kind: 'help' }
     if (name === 'mcp') return { kind: 'mcp' }
     if (name === 'export') {
         if (rest.length !== 1 || rest[0].startsWith('--')) throw new UsageError(EXPORT_USAGE)
@@ -49,10 +50,9 @@ export function parseArgs(argv: Array<string>): Command {
             dir = arg
         }
     }
-    if (dir === undefined) throw new UsageError(VIEW_USAGE)
     return {
         kind: 'view',
-        dir,
+        ...(dir === undefined ? {} : { dir }),
         ...(at === undefined ? {} : { at }),
         ...(port === undefined ? {} : { port }),
         ...(idleExitMinutes === undefined ? {} : { idleExitMinutes }),

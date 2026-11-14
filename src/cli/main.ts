@@ -7,7 +7,8 @@ import { repoRoot, runView } from './view'
 const USAGE = `chair — film a web app into a movie, then watch it
 
 Usage:
-  chair view <dir> [--at <code>] [--port <n>] [--idle-exit <minutes>]
+  chair              open .chair in the current folder, or the current folder
+  chair view [dir] [--at <code>] [--port <n>] [--idle-exit <minutes>]
                      open the viewer on a movies folder; --idle-exit stops it
                      after that many minutes without a request
   chair export <movie dir>

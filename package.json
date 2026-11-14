@@ -15,7 +15,7 @@
         "dev": "vite",
         "build": "vite build",
         "test": "vitest run --project node --project dom",
-        "test:e2e": "vitest run --project e2e",
+        "test:e2e": "pnpm build && vitest run --project e2e",
         "type": "tsc --noEmit",
         "lint": "eslint .",
         "format": "prettier --write . && eslint --fix ."

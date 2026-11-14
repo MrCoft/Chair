@@ -16,6 +16,12 @@ export function viewerEntry(root: string): string {
 
 const IDLE_EXIT_PRELOAD = new URL('./idleExit.ts', import.meta.url).href
 
+export function viewDirectory(dir?: string, cwd = process.cwd()): string {
+    if (dir !== undefined) return resolve(cwd, dir)
+    const local = resolve(cwd, '.chair')
+    return existsSync(local) && statSync(local).isDirectory() ? local : resolve(cwd)
+}
+
 function freePort(): Promise<number> {
     return new Promise((resolvePort, reject) => {
         const server = createServer()
@@ -43,7 +49,7 @@ async function waitUntilServing(url: string, isAlive: () => boolean): Promise<vo
 }
 
 export async function runView(cmd: Extract<Command, { kind: 'view' }>, root: string): Promise<void> {
-    const dir = resolve(cmd.dir)
+    const dir = viewDirectory(cmd.dir)
     if (!existsSync(dir) || !statSync(dir).isDirectory()) throw new Error(`no such folder: ${cmd.dir}`)
     const entry = viewerEntry(root)
     if (!existsSync(entry)) throw new Error(`Viewer not built — run \`pnpm build\` in ${root}`)

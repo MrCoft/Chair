@@ -99,6 +99,7 @@ export const PlayerProvider = ({
         (el: HTMLVideoElement | null) => {
             if (videoRef.current === el) return
             detachRef.current?.()
+            videoRef.current?.pause()
             detachRef.current = null
             videoRef.current = el
             if (!el) return

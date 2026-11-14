@@ -4,5 +4,6 @@ dist/
 coverage/
 .superpowers/
 test-output/
+.chair/
 .nitro/
 .tanstack/

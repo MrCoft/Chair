@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { repoRoot, runView, viewerEntry } from './view'
+import { repoRoot, runView, viewDirectory, viewerEntry } from './view'
 
 const { open } = vi.hoisted(() => ({ open: vi.fn(() => Promise.resolve()) }))
 vi.mock('open', () => ({ default: open }))
@@ -26,6 +26,7 @@ function fakeViewer(lifetimeMs: number): { root: string; record: string } {
         viewerEntry(root),
         `import { writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
+writeFileSync(${JSON.stringify(join(root, 'directory.json'))}, JSON.stringify(process.env.CHAIR_DIR))
 writeFileSync(${JSON.stringify(record)}, JSON.stringify({
     execArgv: process.execArgv,
     idleMs: process.env.CHAIR_IDLE_EXIT_MS ?? null,
@@ -76,6 +77,16 @@ describe('runView lifetime', () => {
         expect(open).toHaveBeenCalledWith(expect.stringMatching(/^http:\/\/127\.0\.0\.1:\d+\/$/))
     })
 
+    it('passes the repo .chair directory to the launched service when no path is supplied', async () => {
+        const { root, record } = fakeViewer(4000)
+        const cwd = makeTemp()
+        mkdirSync(join(cwd, '.chair'))
+        vi.spyOn(process, 'cwd').mockReturnValue(cwd)
+        await runView({ kind: 'view', idleExitMinutes: 0.01 }, root)
+        expect(JSON.parse(readFileSync(join(root, 'directory.json'), 'utf8'))).toBe(join(cwd, '.chair'))
+        expect(recorded(record)).toMatchObject({ idleMs: '600' })
+    })
+
     it('without --idle-exit, the server keeps serving until it is stopped', async () => {
         const { root, record } = fakeViewer(1500)
         const started = Date.now()
@@ -86,6 +97,21 @@ describe('runView lifetime', () => {
 })
 
 describe('paths', () => {
+    it('prefers the current folder .chair directory for a bare launch', () => {
+        const cwd = makeTemp()
+        mkdirSync(join(cwd, '.chair'))
+        expect(viewDirectory(undefined, cwd)).toBe(join(cwd, '.chair'))
+        expect(viewDirectory('.', cwd)).toBe(cwd)
+        expect(viewDirectory('chosen movies', cwd)).toBe(join(cwd, 'chosen movies'))
+    })
+
+    it('uses the current directory when .chair is absent or is a file', () => {
+        const cwd = makeTemp()
+        expect(viewDirectory(undefined, cwd)).toBe(cwd)
+        writeFileSync(join(cwd, '.chair'), 'not a directory')
+        expect(viewDirectory(undefined, cwd)).toBe(cwd)
+    })
+
     it('finds the repo root and viewer entry', () => {
         expect(viewerEntry(repoRoot())).toBe(join(repoRoot(), '.output', 'server', 'index.mjs'))
     })

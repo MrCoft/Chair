@@ -74,10 +74,13 @@ The MCP server gives the agent 11 tools: `open`, `run`, `snapshot`, `screenshot`
 To open a movie yourself:
 
 ```sh
-chair view <dir> [--at <code>] [--port <n>] [--idle-exit <minutes>]
+chair
+chair view [dir] [--at <code>] [--port <n>] [--idle-exit <minutes>]
 ```
 
-- **`<dir>`:** a movie folder, or a folder of movies (you get a list).
+- **`chair`:** opens `.chair` in your current directory when that folder exists; otherwise opens the current directory. `chair view` without a path does the same. Add `.chair/` to your repo's `.gitignore` to keep recordings local. Chair does not create the folder or change other repos' ignore files for you.
+- **`[dir]`:** an explicit movie folder or library path. Movie discovery includes nested run folders, such as `.chair/scenarios/<run>/<movie>`, without following directory links or scanning a movie's raw artifacts. Open the parent once, choose a movie from the list, then use the **Movie** selector in the player header to switch without restarting Chair. The selector shows titles and relative folder paths, so retakes with the same title remain distinguishable. **All movies** returns to the folder list and discovers newly added movies.
+- Switching movies keeps Theater/Study mode, stops the old video, and starts the selected movie paused at its beginning with its own bookmarks. A step link such as `?at=2f` applies to its movie only.
 - **`--at 2f`:** opens the movie at that step.
 - **Stopping:** `chair view` runs until Ctrl+C. With `--idle-exit 30` it stops by itself after 30 minutes without a request, which is how the viewer opened by `finish` runs.
 

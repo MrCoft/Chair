@@ -1,6 +1,8 @@
 import { Link } from '@tanstack/react-router'
 import type { Bookmarks, Movie } from '@/format/movie'
+import type { MovieRef } from '@/server/library.server'
 import { CopyBookmarks } from '@/components/CopyBookmarks'
+import { MovieSelector } from '@/components/MovieSelector'
 import { Button } from '@/components/shadcn/button'
 import { cn } from '@/lib/utils'
 import { formatTime } from '@/player/timeline'
@@ -23,6 +25,7 @@ export const Header = ({
     saveFailed,
     view,
     downloadSrc,
+    library,
 }: {
     id: string
     movie: Movie
@@ -30,8 +33,10 @@ export const Header = ({
     saveFailed: boolean
     view: View
     downloadSrc: string
+    library: Array<MovieRef> | undefined
 }) => (
     <header className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b bg-card px-4 py-2 text-sm">
+        <MovieSelector id={id} title={movie.title} view={view} refs={library} />
         <h1 className="font-bold">{movie.title}</h1>
         <span className="font-mono text-xs text-muted-foreground">{id}</span>
         <span className="flex items-center gap-2 text-muted-foreground">
@@ -43,7 +48,7 @@ export const Header = ({
         </span>
         <CopyBookmarks id={id} movie={movie} bookmarks={bookmarks} />
         <Button asChild variant="outline" size="xs" className="rounded-md tracking-normal normal-case">
-            <a href={downloadSrc} download={`${id}${extensionOf(downloadSrc)}`}>
+            <a href={downloadSrc} download={`${id.split('/').at(-1)}${extensionOf(downloadSrc)}`}>
                 Download movie
             </a>
         </Button>

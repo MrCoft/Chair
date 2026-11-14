@@ -18,8 +18,8 @@ describe('parseArgs', () => {
 
     it('parses mcp and help', () => {
         expect(parseArgs(['mcp'])).toEqual({ kind: 'mcp' })
-        expect(parseArgs([])).toEqual({ kind: 'help' })
         expect(parseArgs(['--help'])).toEqual({ kind: 'help' })
+        expect(parseArgs(['-h'])).toEqual({ kind: 'help' })
         expect(parseArgs(['help'])).toEqual({ kind: 'help' })
     })
 
@@ -32,8 +32,6 @@ describe('parseArgs', () => {
     })
 
     it('rejects bad input', () => {
-        expect(() => parseArgs(['view'])).toThrow(UsageError)
-        expect(() => parseArgs(['view'])).toThrow('chair view <dir> [--at <code>] [--port <n>]')
         expect(() => parseArgs(['view', 'd', '--port', 'abc'])).toThrow('--port must be a number')
         expect(() => parseArgs(['view', 'd', '--at', '2F'])).toThrow('invalid step code 2F')
         expect(() => parseArgs(['view', 'd', '--at'])).toThrow(UsageError)
@@ -45,5 +43,11 @@ describe('parseArgs', () => {
         expect(() => parseArgs(['view', 'd', '--idle-exit'])).toThrow(UsageError)
         expect(() => parseArgs(['view', 'd', '--bogus'])).toThrow(UsageError)
         expect(() => parseArgs(['nope'])).toThrow(UsageError)
+    })
+
+    it('launches the viewer with automatic folder selection when no path is supplied', () => {
+        expect(parseArgs([])).toEqual({ kind: 'view' })
+        expect(parseArgs(['view'])).toEqual({ kind: 'view' })
+        expect(parseArgs(['view', '--at', '2f'])).toEqual({ kind: 'view', at: '2f' })
     })
 })

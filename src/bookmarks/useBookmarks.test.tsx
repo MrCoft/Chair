@@ -1,7 +1,8 @@
-import { act, renderHook } from '@testing-library/react'
+import { act, fireEvent, render, renderHook, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import type { Bookmarks } from '@/format/movie'
 import { useBookmarks } from '@/bookmarks/useBookmarks'
+import { BookmarkProvider } from '@/bookmarks/BookmarkProvider'
 import { fixtureBookmarks } from '@/test/fixtures'
 import { saveBookmarks } from '@/test/serverMocks/movies'
 
@@ -11,6 +12,7 @@ const codes = (bookmarks: Bookmarks) => bookmarks.items.map((item) => item.code)
 const renderBookmarks = () =>
     renderHook(({ movieId, initial }) => useBookmarks(movieId, initial), {
         initialProps: { movieId: folder, initial: fixtureBookmarks },
+        wrapper: BookmarkProvider,
     })
 
 const settle = () => act(() => new Promise<void>((resolve) => setTimeout(resolve, 0)))
@@ -73,6 +75,65 @@ describe('useBookmarks', () => {
         expect(codes(result.current.bookmarks)).toEqual(['1'])
         await settle()
         expect(saveBookmarks).toHaveBeenLastCalledWith({ data: { id: 'other', bookmarks: result.current.bookmarks } })
+    })
+
+    it('retains pending edits when revisiting a folder after editing another movie', async () => {
+        const saving = deferred()
+        saveBookmarks.mockReturnValueOnce(saving.promise)
+        const initial: Bookmarks = { version: 1, items: [] }
+        const { result, rerender } = renderHook(({ movieId }) => useBookmarks(movieId, initial), {
+            initialProps: { movieId: 'A' },
+            wrapper: BookmarkProvider,
+        })
+        act(() => result.current.toggle('1'))
+        await settle()
+        rerender({ movieId: 'B' })
+        act(() => result.current.toggle('1'))
+        rerender({ movieId: 'A' })
+        act(() => result.current.toggle('2'))
+        saving.resolve()
+        await settle()
+
+        expect(saveBookmarks.mock.calls.map(([input]) => [input.data.id, codes(input.data.bookmarks)])).toEqual([
+            ['A', ['1']],
+            ['B', ['1']],
+            ['A', ['1', '2']],
+        ])
+        expect(codes(result.current.bookmarks)).toEqual(['1', '2'])
+    })
+
+    it('keeps pending folder edits when the movie component unmounts for the library', async () => {
+        const saving = deferred()
+        saveBookmarks.mockReturnValueOnce(saving.promise)
+        const initial: Bookmarks = { version: 1, items: [] }
+        function Movie({ id }: { id: string }) {
+            const state = useBookmarks(id, initial)
+            return (
+                <>
+                    <button onClick={() => state.toggle('1')}>Bookmark one</button>
+                    <button onClick={() => state.toggle('2')}>Bookmark two</button>
+                </>
+            )
+        }
+        const app = (id: string | null) => (
+            <BookmarkProvider>{id ? <Movie id={id} /> : <p>Library</p>}</BookmarkProvider>
+        )
+        const { rerender } = render(app('A'))
+        fireEvent.click(screen.getByRole('button', { name: 'Bookmark one' }))
+        await settle()
+        rerender(app(null))
+        rerender(app('B'))
+        fireEvent.click(screen.getByRole('button', { name: 'Bookmark one' }))
+        rerender(app(null))
+        rerender(app('A'))
+        fireEvent.click(screen.getByRole('button', { name: 'Bookmark two' }))
+        saving.resolve()
+        await settle()
+        expect(saveBookmarks.mock.calls.map(([input]) => [input.data.id, codes(input.data.bookmarks)])).toEqual([
+            ['A', ['1']],
+            ['B', ['1']],
+            ['A', ['1', '2']],
+        ])
     })
 
     it('sends saves one after another, the newest last', async () => {

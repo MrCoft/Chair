@@ -1,7 +1,7 @@
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished } from 'vitest'
 import { emptyBookmarks } from '../format/movie'
 import { fixtureMovie } from '../test/fixtures'
 import { NotFoundError, listLibrary, readMovie, resolveMediaPath, writeBookmarks } from './library.server'
@@ -22,6 +22,25 @@ afterEach(async () => {
 })
 
 describe('listLibrary', () => {
+    it('discovers nested run folders with stable relative identities and stops at movie folders', async () => {
+        await putMovie(join(root, 'scenarios', 'run one', 'take'), { createdAt: '2026-06-01T00:00:00.000Z' })
+        await putMovie(join(root, 'scenarios', 'run two', 'take'), { createdAt: '2026-01-01T00:00:00.000Z' })
+        await putMovie(join(root, 'scenarios', 'run one', 'take', 'raw', 'ignored'))
+        const library = await listLibrary(root)
+        expect(library.problems).toEqual([])
+        expect(library.refs.map((ref) => ref.id)).toEqual(['scenarios/run one/take', 'scenarios/run two/take'])
+    })
+
+    it('does not discover or open directory links outside the library', async () => {
+        const outside = await mkdtemp(join(tmpdir(), 'chair-outside-'))
+        onTestFinished(() => rm(outside, { recursive: true, force: true }))
+        await putMovie(outside)
+        await symlink(outside, join(root, 'escape'), 'junction')
+        expect((await listLibrary(root)).refs).toEqual([])
+        await expect(readMovie(root, 'escape')).rejects.toBeInstanceOf(NotFoundError)
+        await expect(writeBookmarks(root, 'escape', emptyBookmarks())).rejects.toBeInstanceOf(NotFoundError)
+    })
+
     it('a folder that is itself a movie', async () => {
         await putMovie(root)
         const { refs, problems } = await listLibrary(root)
@@ -123,6 +142,14 @@ describe('writeBookmarks', () => {
         expect((await readMovie(root, 'a')).bookmarks).toEqual(good)
     })
 
+    it('keeps bookmark writes in the selected nested movie folder', async () => {
+        await putMovie(join(root, 'run', 'take'))
+        await putMovie(join(root, 'other', 'take'))
+        await writeBookmarks(root, 'run/take', good)
+        expect((await readMovie(root, 'run/take')).bookmarks).toEqual(good)
+        expect((await readMovie(root, 'other/take')).bookmarks).toEqual(emptyBookmarks())
+    })
+
     it('rejects an invalid payload and keeps the old file', async () => {
         await putMovie(join(root, 'a'))
         await writeBookmarks(root, 'a', good)
@@ -136,6 +163,22 @@ describe('writeBookmarks', () => {
 })
 
 describe('resolveMediaPath', () => {
+    it('resolves nested movie identities and refuses traversal within them', async () => {
+        await putMovie(join(root, 'scenarios', 'run', 'take'))
+        expect(resolveMediaPath(root, 'scenarios/run/take/movie.mp4')).toBe(
+            join(root, 'scenarios', 'run', 'take', 'movie.mp4'),
+        )
+        expect(() => resolveMediaPath(root, 'scenarios/run/take/../../secret')).toThrow(NotFoundError)
+        await expect(readMovie(root, 'scenarios/../take')).rejects.toBeInstanceOf(NotFoundError)
+    })
+
+    it('does not serve media through a file link outside its movie folder', async () => {
+        await putMovie(join(root, 'take'))
+        await writeFile(join(root, 'secret.mp4'), 'private')
+        await symlink(root, join(root, 'take', 'escape'), 'junction')
+        expect(() => resolveMediaPath(root, 'take/escape/secret.mp4')).toThrow(NotFoundError)
+    })
+
     it('resolves inside a folder with spaces', async () => {
         await putMovie(join(root, 'Movie One'))
         expect(resolveMediaPath(root, 'Movie One/movie.mp4')).toBe(join(root, 'Movie One', 'movie.mp4'))

@@ -2,6 +2,7 @@ import { HeadContent, Outlet, Scripts, createRootRouteWithContext } from '@tanst
 import type { QueryClient } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import appCss from '@/styles/globals.css?url'
+import { BookmarkProvider } from '@/bookmarks/BookmarkProvider'
 
 interface RouterContext {
     queryClient: QueryClient
@@ -28,6 +29,10 @@ export const Route = createRootRouteWithContext<RouterContext>()({
         ],
         links: [{ rel: 'stylesheet', href: appCss }],
     }),
-    component: () => <Outlet />,
+    component: () => (
+        <BookmarkProvider>
+            <Outlet />
+        </BookmarkProvider>
+    ),
     shellComponent: RootDocument,
 })

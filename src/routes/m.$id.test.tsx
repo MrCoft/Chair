@@ -4,13 +4,20 @@ import { join } from 'node:path'
 import { RouterProvider } from '@tanstack/react-router'
 import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { renderToString } from 'react-dom/server'
-import { describe, expect, it, onTestFinished, vi } from 'vitest'
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { readMovie } from '@/server/library.server'
 import { createAppRouter, expectLoaderError, findVideo, renderApp } from '@/test/renderApp'
-import { getMovie, saveBookmarks } from '@/test/serverMocks/movies'
-import { fixtureBookmarks, fixtureMovie } from '@/test/fixtures'
+import { getLibrary, getMovie, saveBookmarks } from '@/test/serverMocks/movies'
+import { fixtureBookmarks, fixtureMovie, fixtureRef } from '@/test/fixtures'
 
 const moviePath = `/m/${fixtureMovie.id}`
+const libraryDefault = getLibrary.getMockImplementation()!
+const movieDefault = getMovie.getMockImplementation()!
+beforeEach(() => {
+    getLibrary.mockReset().mockImplementation(libraryDefault)
+    getMovie.mockReset().mockImplementation(movieDefault)
+    saveBookmarks.mockClear()
+})
 
 const serveFolder = async (id: string, files: Record<string, string>) => {
     const root = await mkdtemp(join(tmpdir(), 'chair route '))
@@ -21,6 +28,76 @@ const serveFolder = async (id: string, files: Record<string, string>) => {
 }
 
 describe('the movie route', () => {
+    it('switches folders from the player, keeping Study and resetting playback and bookmarks', async () => {
+        const second = { ...fixtureMovie, title: 'Another take', scope: 'Another workflow' }
+        getLibrary.mockResolvedValue({
+            dir: 'C:\\movies',
+            refs: [fixtureRef, { ...fixtureRef, id: 'second folder', title: second.title }],
+            problems: [],
+        })
+        getMovie.mockImplementation(({ data }) =>
+            Promise.resolve(
+                data.id === 'second folder'
+                    ? { movie: second, bookmarks: { version: 1, items: [] } }
+                    : { movie: fixtureMovie, bookmarks: fixtureBookmarks },
+            ),
+        )
+        const router = renderApp(`${moviePath}?at=2f&view=study`)
+        const firstVideo = await findVideo(fixtureMovie.title)
+        await waitFor(() => expect(firstVideo.currentTime).toBe(12))
+        fireEvent.click(screen.getByRole('button', { name: 'Play' }))
+        expect(firstVideo.paused).toBe(false)
+
+        fireEvent.change(await screen.findByRole('combobox', { name: 'Movie' }), { target: { value: 'second folder' } })
+        const secondVideo = await findVideo('Another take')
+
+        expect(router.state.matches.at(-1)?.params).toMatchObject({ id: 'second folder' })
+        expect(router.state.location.search).toEqual({ view: 'study' })
+        expect(secondVideo.currentTime).toBe(0)
+        expect(secondVideo.paused).toBe(true)
+        expect(firstVideo.paused).toBe(true)
+        expect(secondVideo.getAttribute('src')).toBe('/media/second%20folder/movie.mp4')
+        expect(screen.getByText('0 bookmarks')).toBeInTheDocument()
+        expect(screen.getByRole('combobox', { name: 'Movie' })).toHaveValue('second folder')
+        fireEvent.click(screen.getByRole('button', { name: /bookmark 1 /i }))
+        await waitFor(() =>
+            expect(saveBookmarks).toHaveBeenLastCalledWith({
+                data: {
+                    id: 'second folder',
+                    bookmarks: expect.objectContaining({ items: [expect.objectContaining({ code: '1' })] }),
+                },
+            }),
+        )
+
+        await router.history.back()
+        const back = await findVideo(fixtureMovie.title)
+        await waitFor(() => expect(back.currentTime).toBe(12))
+        expect(screen.getByText('1 bookmark')).toBeInTheDocument()
+    })
+
+    it('offers a way back to the library and disambiguates duplicate movie titles by folder', async () => {
+        getLibrary.mockResolvedValueOnce({
+            dir: 'C:\\movies',
+            refs: [fixtureRef, { ...fixtureRef, id: 'retake' }],
+            problems: [],
+        })
+        renderApp(moviePath)
+        await findVideo(fixtureMovie.title)
+        const select = await screen.findByRole('combobox', { name: 'Movie' })
+        expect(within(select).getByRole('option', { name: new RegExp(fixtureMovie.id) })).toHaveValue(fixtureMovie.id)
+        expect(within(select).getByRole('option', { name: /retake/ })).toHaveValue('retake')
+        expect(screen.getByRole('link', { name: 'All movies' })).toHaveAttribute('href', '/')
+    })
+
+    it('keeps a directly opened movie usable when the folder list cannot be read', async () => {
+        getLibrary.mockRejectedValueOnce(new Error('Cannot read the library'))
+        renderApp(moviePath)
+        const video = await findVideo(fixtureMovie.title)
+        expect(video.getAttribute('src')).toBe(`/media/${fixtureMovie.id}/movie.mp4`)
+        expect(screen.getByRole('combobox', { name: 'Movie' })).toHaveValue(fixtureMovie.id)
+        expect(screen.getByRole('status')).toHaveTextContent('Movie list unavailable')
+    })
+
     it('seeks to the step named by ?at on load', async () => {
         renderApp(`${moviePath}?at=1a`)
         const video = await findVideo(fixtureMovie.title)
@@ -108,6 +185,15 @@ describe('the movie route', () => {
         expect(download).toHaveAttribute('download', "it's 100% here.mp4")
         expect(screen.getByText(id)).toBeInTheDocument()
         expect(screen.queryByText(fixtureMovie.id)).not.toBeInTheDocument()
+    })
+
+    it('uses a nested folder identity for requests and a plain filename for downloads', async () => {
+        getMovie.mockResolvedValueOnce({ movie: fixtureMovie, bookmarks: fixtureBookmarks })
+        renderApp('/m/run%20one%2Ftake')
+        const video = await findVideo(fixtureMovie.title)
+        expect(getMovie).toHaveBeenLastCalledWith({ data: { id: 'run one/take' } })
+        expect(video.getAttribute('src')).toBe('/media/run%20one%2Ftake/movie.mp4')
+        expect(screen.getByRole('link', { name: 'Download movie' })).toHaveAttribute('download', 'take.mp4')
     })
 
     it('shows the ?at step in its very first render, before any effect runs', async () => {

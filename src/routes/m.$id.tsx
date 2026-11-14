@@ -9,14 +9,17 @@ import { Theater } from '@/components/Theater'
 import { PlayerProvider, usePlayer } from '@/player/PlayerContext'
 import { useShortcuts } from '@/player/useShortcuts'
 import { movieSearch } from '@/routes/-search'
-import { getMovie } from '@/server/movies'
+import { getLibrary, getMovie } from '@/server/movies'
 
 export const Route = createFileRoute('/m/$id')({
     validateSearch: movieSearch,
     loader: async ({ params }) => {
-        const result = await getMovie({ data: { id: params.id } })
+        const [result, library] = await Promise.all([
+            getMovie({ data: { id: params.id } }),
+            getLibrary().catch(() => undefined),
+        ])
         if (result.movie.steps.length === 0) throw new Error(`${params.id} has no steps`)
-        return result
+        return { ...result, library }
     },
     head: ({ loaderData }) => ({ meta: [{ title: loaderData ? `${loaderData.movie.title} · Chair` : 'Chair' }] }),
     component: MoviePage,
@@ -59,6 +62,7 @@ function MoviePage() {
                     saveFailed={saveFailed}
                     view={view}
                     downloadSrc={downloadSrc}
+                    library={loaded.library?.refs}
                 />
                 {view === 'study' ? (
                     <Study

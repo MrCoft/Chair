@@ -1,6 +1,6 @@
-import { existsSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
 import { readFile, readdir, rename, writeFile } from 'node:fs/promises'
-import { basename, join, resolve } from 'node:path'
+import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { CAPTIONED_VIDEO, bookmarksSchema, emptyBookmarks, movieSchema } from '../format/movie'
 import type { ZodType } from 'zod'
 import type { Bookmarks, Movie } from '../format/movie'
@@ -25,17 +25,24 @@ const isPlainSegment = (segment: string): boolean =>
     segment.length > 0 && segment !== '.' && segment !== '..' && !/[\\/:]/.test(segment)
 
 const movieDir = (root: string, id: string): string => {
-    if (!isPlainSegment(id)) throw new NotFoundError(`no movie ${id}`)
+    if (!id.split('/').every(isPlainSegment)) throw new NotFoundError(`no movie ${id}`)
     const rootDir = resolve(root)
-    if (basename(rootDir) === id && existsSync(join(rootDir, 'movie.json'))) return rootDir
-    const dir = join(rootDir, id)
+    const dir = basename(rootDir) === id && existsSync(join(rootDir, 'movie.json')) ? rootDir : join(rootDir, id)
     if (!existsSync(join(dir, 'movie.json'))) throw new NotFoundError(`no movie ${id}`)
+    contained(rootDir, dir)
     return dir
+}
+
+const contained = (root: string, path: string): void => {
+    const rel = relative(realpathSync(root), realpathSync(path))
+    if (rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel))
+        throw new NotFoundError('Path is outside the movie library')
 }
 
 const parseFile = async <T>(dir: string, file: string, schema: ZodType<T>): Promise<T> => {
     let raw: unknown
     try {
+        contained(dir, join(dir, file))
         raw = JSON.parse(await readFile(join(dir, file), 'utf8'))
     } catch (error) {
         throw new Error(`${file}: ${(error as Error).message}`)
@@ -62,29 +69,31 @@ const toRef = (id: string, movie: Movie): MovieRef => ({
 
 export const listLibrary = async (root: string): Promise<{ refs: Array<MovieRef>; problems: Array<string> }> => {
     const rootDir = resolve(root)
-    if (existsSync(join(rootDir, 'movie.json'))) {
-        const id = basename(rootDir)
-        try {
-            return { refs: [toRef(id, await parseMovie(rootDir))], problems: [] }
-        } catch (error) {
-            return { refs: [], problems: [`${id}: ${(error as Error).message}`] }
-        }
-    }
-
     const refs: Array<MovieRef> = []
     const problems: Array<string> = []
-    const entries = await readdir(rootDir, { withFileTypes: true })
-    for (const entry of entries) {
-        if (!entry.isDirectory()) continue
-        const dir = join(rootDir, entry.name)
-        if (!existsSync(join(dir, 'movie.json'))) continue
+    const visit = async (dir: string, id: string): Promise<void> => {
+        if (existsSync(join(dir, 'movie.json'))) {
+            try {
+                refs.push(toRef(id || basename(rootDir), await parseMovie(dir)))
+            } catch (error) {
+                problems.push(`${id || basename(rootDir)}: ${(error as Error).message}`)
+            }
+            return
+        }
         try {
-            refs.push(toRef(entry.name, await parseMovie(dir)))
+            const entries = await readdir(dir, { withFileTypes: true })
+            for (const entry of entries) {
+                if (!entry.isDirectory() || entry.isSymbolicLink() || ['.git', 'node_modules'].includes(entry.name))
+                    continue
+                await visit(join(dir, entry.name), id ? `${id}/${entry.name}` : entry.name)
+            }
         } catch (error) {
-            problems.push(`${entry.name}: ${(error as Error).message}`)
+            if (!id) throw error
+            problems.push(`${id}: ${(error as Error).message}`)
         }
     }
-    refs.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    await visit(rootDir, '')
+    refs.sort((a, b) => b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id))
     return { refs, problems }
 }
 
@@ -112,6 +121,17 @@ export const writeBookmarks = async (root: string, id: string, bookmarks: Bookma
 export const resolveMediaPath = (root: string, splat: string): string => {
     const segments = splat.split(/[\\/]/)
     if (segments.length < 2 || !segments.every(isPlainSegment)) throw new NotFoundError(`no media ${splat}`)
-    const [id, ...file] = segments
-    return join(movieDir(root, id), ...file)
+    for (let length = 1; length < segments.length; length++) {
+        let dir: string
+        try {
+            dir = movieDir(root, segments.slice(0, length).join('/'))
+        } catch (error) {
+            if (error instanceof NotFoundError) continue
+            throw error
+        }
+        const file = join(dir, ...segments.slice(length))
+        if (existsSync(file)) contained(dir, file)
+        return file
+    }
+    throw new NotFoundError(`no media ${splat}`)
 }
