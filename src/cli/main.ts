@@ -1,6 +1,7 @@
 import { resolve } from 'node:path'
 import { startMcpServer } from '../mcp/server'
 import { exportCaptioned } from '../recorder/captions'
+import { readGuide } from '../guide'
 import { UsageError, parseArgs } from './args'
 import { repoRoot, runView } from './view'
 
@@ -15,6 +16,7 @@ Usage:
                      write movie-captioned.mp4, the download copy with the
                      caption box burned in (finish makes it for new movies)
   chair mcp          run the MCP server on stdio
+  chair guide        read the agent filming guide (cursor, focus, pacing, captions)
   chair help         show this text
 `
 
@@ -22,6 +24,8 @@ async function main(): Promise<void> {
     const cmd = parseArgs(process.argv.slice(2))
     if (cmd.kind === 'help') {
         process.stdout.write(USAGE)
+    } else if (cmd.kind === 'guide') {
+        process.stdout.write(await readGuide())
     } else if (cmd.kind === 'mcp') {
         await startMcpServer()
     } else if (cmd.kind === 'export') {

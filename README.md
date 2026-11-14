@@ -69,6 +69,18 @@ claude mcp add chair -s user -- chair mcp
 
 You don't film anything yourself: ask your agent for a movie. Its working guide, with the workflow, the tools, caption style and how to handle mistakes, is [docs/agent-guide.md](docs/agent-guide.md). A project can add its own skill on top, with app-specific helpers such as MUI pickers, login steps and where movies go.
 
+The portable [Chair skill](skills/chair/SKILL.md) applies in any project. Install its
+folder in your agent's user skills directory (for example `~/.codex/skills/chair`
+or `~/.claude/skills/chair`); keep app-specific setup in a separate project skill.
+`chair guide` prints the canonical guide from the global installation. The MCP
+server also supplies filming instructions at connection time and exposes
+`chair://guide`. Installing the CLI does not itself connect an agent's MCP client.
+
+"Make Chair movies" means filming with those tools: cursor, target highlights,
+human pacing, and authored captions explaining actions and observed results.
+Ordinary Playwright videos plus `movie.json` are viewable imports, not that filming
+workflow. Keep fast test artifacts separate from human walkthroughs.
+
 The MCP server gives the agent 11 tools: `open`, `run`, `snapshot`, `screenshot`, `movie_start`, `step`, `cut`, `resume`, `retake`, `finish`, `close`.
 
 To open a movie yourself:

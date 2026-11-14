@@ -80,7 +80,7 @@ export function registerTools(
 
     define(
         'run',
-        'Run a Playwright snippet, a function expression like async (page, h) => { … }, with the helper library h loaded. Use it for rehearsal and for the take; the camera films only while a step is active and filming is not cut. Returns the snippet return value as JSON.',
+        'Run a Playwright snippet, a function expression like async (page, h) => { … }. During a take use h.click/h.type/h.hover: they draw the cursor, outline targets and slow actions for the viewer. Use h.mark on the observed result. Raw page/locator actions have no Chair effects; reserve them for rehearsal, assertions or operations after marking their target. The camera films only during this call with an active uncut step. Returns the snippet return value as JSON.',
         { code: z.string() },
         async ({ code }) => text(truncate(JSON.stringify((await session.run(code)) ?? null, null, 2))),
     )
@@ -117,7 +117,7 @@ export function registerTools(
 
     define(
         'step',
-        'End the current step and start the next one. Nothing is filmed until the next run, so start the actions with run straight away: the viewer stops at the start of each step until the human plays on, so never wait for them to read. Keep text to 1–3 short sentences; it is shown as the caption.',
+        'End the current step and start the next one. Write 1–3 short caption sentences explaining the next action and why, or the observed result and what it means. Then run the action using h helpers immediately. Nothing is filmed until run. The viewer pauses for reading at step boundaries; do not add reading waits.',
         { code: z.string(), title: z.string(), text: z.string() },
         (args) => {
             session.step(args.code, args.title, args.text)

@@ -5,6 +5,7 @@ export type Command =
     | { kind: 'export'; dir: string }
     | { kind: 'mcp' }
     | { kind: 'help' }
+    | { kind: 'guide' }
 
 export class UsageError extends Error {}
 
@@ -16,6 +17,7 @@ export function parseArgs(argv: Array<string>): Command {
     const [name, ...rest] = argv
     if (argv.length === 0) return { kind: 'view' }
     if (name === 'help' || name === '--help' || name === '-h') return { kind: 'help' }
+    if (name === 'guide') return { kind: 'guide' }
     if (name === 'mcp') return { kind: 'mcp' }
     if (name === 'export') {
         if (rest.length !== 1 || rest[0].startsWith('--')) throw new UsageError(EXPORT_USAGE)

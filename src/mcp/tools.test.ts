@@ -3,8 +3,10 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { describe, expect, it, vi } from 'vitest'
 import { fixtureMovie } from '../test/fixtures'
+import { readGuide } from '../guide'
 import { SessionError } from './session'
 import { registerTools } from './tools'
+import { createChairServer } from './server'
 import type { SessionLike } from './session'
 
 type Status = ReturnType<SessionLike['status']>
@@ -50,6 +52,24 @@ function textOf(result: Awaited<ReturnType<Client['callTool']>>): string {
 const lastLine = (text: string) => text.split('\n').at(-1)
 
 describe('chair MCP tools', () => {
+    it('delivers filming instructions at initialization and exposes the canonical guide as a resource', async () => {
+        const server = createChairServer(fakeSession())
+        const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
+        const client = new Client({ name: 'guide-test', version: '1' })
+        await Promise.all([server.connect(serverSide), client.connect(clientSide)])
+        try {
+            expect(client.getInstructions()).toBeTruthy()
+            expect((await client.listResources()).resources.map((resource) => resource.uri)).toContain('chair://guide')
+            const resource = await client.readResource({ uri: 'chair://guide' })
+            expect(resource.contents).toEqual([
+                { uri: 'chair://guide', mimeType: 'text/markdown', text: await readGuide() },
+            ])
+        } finally {
+            await client.close()
+            await server.close()
+        }
+    })
+
     it('lists exactly the eleven tools', async () => {
         const client = await connect(fakeSession())
         const { tools } = await client.listTools()

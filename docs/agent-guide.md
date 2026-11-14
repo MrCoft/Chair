@@ -12,8 +12,13 @@ claude mcp add chair -s user -- chair mcp
 
 ## Workflow
 
+**"Make Chair movies" means use Chair's recording tools and visual helpers.**
+Ordinary Playwright `recordVideo`, converted MP4s, or hand-written `movie.json`
+files can be viewed in Chair, but do not provide its cursor, focus marks or pacing.
+They are test artifacts, not a substitute for a human walkthrough.
+
 1. **Plan.** Decide what the movie shows, split it into parts and steps, and write the plan in chat.
-2. **Approval.** Wait for the human to approve the plan in chat. Do not film before that.
+2. **Authorization.** Reuse the user's request and any approved scenario list. Do not ask again merely to film already requested work. Resolve only missing permissions for real-world side effects or unclear scope before recording.
 3. **Rehearse with the camera off.** Call `open`, then use `run`, `snapshot` and `screenshot` to walk the whole flow fast. Mistakes cost nothing here: no `movie_start` yet, nothing is filmed. Find selectors, create test data, learn where things are slow.
 4. **Take.** Call `movie_start({ dir, title, scope, parts })`, then film live, call by call: `step` (new caption) followed by one or more `run` calls that do the thing. Go slow and use the effects. Drive the take live, never write one long pre-scripted playback and replay it; you need to look at the page between calls and react.
 5. **Finish.** Call `finish` once every step is filmed. It assembles the movie and opens the viewer. Options: `open` (default true; false skips opening the viewer) and `keepRaw` (keeps the `raw/` frames instead of removing them).
@@ -89,6 +94,16 @@ Default pacing can be changed in `open` via `pacing` (`markMs`, `cursorMs`, `typ
 `resume` instead continues the current step when the repair needs no redo.
 
 ## One-time movies
+
+For repeatable automated demos, use the same Chair recording tools and authored
+steps. Rehearse against isolated fixtures first, keep the default human pacing,
+verify the on-screen results, and inspect the resulting movie. Fast test recordings
+should remain separate from the walkthroughs.
+
+Before handing over, inspect exported frames from an action and a result. Check
+the visible cursor, focus outline, readable caption, and unhurried interaction.
+Captions should explain what is about to happen and what actually happened, not
+just repeat a test title or claim that assertions ran.
 
 A finished movie is never reopened, patched or re-filmed. `movie_start` refuses a finished or non-empty folder. If the human wants an updated version, film a new folder, and only when they ask.
 

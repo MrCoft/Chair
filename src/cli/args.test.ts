@@ -17,6 +17,7 @@ describe('parseArgs', () => {
     })
 
     it('parses mcp and help', () => {
+        expect(parseArgs(['guide'])).toEqual({ kind: 'guide' })
         expect(parseArgs(['mcp'])).toEqual({ kind: 'mcp' })
         expect(parseArgs(['--help'])).toEqual({ kind: 'help' })
         expect(parseArgs(['-h'])).toEqual({ kind: 'help' })
